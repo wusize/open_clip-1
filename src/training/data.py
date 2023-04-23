@@ -582,9 +582,9 @@ def get_data(args, preprocess_fns, epoch=0, tokenizer=None):
         data["train"] = get_dataset_fn(args.train_data, args.dataset_type)(
             args, preprocess_train, is_train=True, epoch=epoch, tokenizer=tokenizer)
 
-    if args.val_data:
-        data["val"] = get_dataset_fn(args.val_data, args.dataset_type)(
-            args, preprocess_val, is_train=False, tokenizer=tokenizer)
+    # if args.val_data:
+    #     data["val"] = get_dataset_fn(args.val_data, args.dataset_type)(
+    #         args, preprocess_val, is_train=False, tokenizer=tokenizer)
 
     if args.imagenet_val is not None:
         split = "openmmlab" if args.dataset_type == "openmmlab" else "val"
