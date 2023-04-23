@@ -47,6 +47,35 @@ class CsvDataset(Dataset):
         return images, texts
 
 
+class OpenMMLabImageNetDataset(Dataset):
+    def __init__(self, input_filename, transforms, image_root):
+        logging.debug(f'Loading imagenet data from {input_filename}.')
+        with open(input_filename, 'r') as f:
+            lines = f.readlines()
+        self.image_root = image_root
+        self.images = self.parse_lines(lines)
+        self.transforms = transforms
+        logging.debug('Done loading data.')
+
+    def parse_lines(self, lines):
+        images = []
+        for line in lines:
+            image_name, label = line.split(' ')
+            label = int(label)
+            images.append(dict(image_path=os.path.join(self.image_root, image_name),
+                               label=label))
+        return images
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        image_info = self.images[idx]
+        image = self.transforms(Image.open(image_info['image_path']))
+        label = image_info['label']
+        return image, label
+
+
 class SharedEpoch:
     def __init__(self, epoch: int = 0):
         self.shared_epoch = Value('i', epoch)
@@ -116,13 +145,16 @@ def get_dataset_size(shards):
 
 
 def get_imagenet(args, preprocess_fns, split):
-    assert split in ["train", "val", "v2"]
+    assert split in ["train", "val", "v2", "openmmlab"]
     is_train = split == "train"
     preprocess_train, preprocess_val = preprocess_fns
 
     if split == "v2":
         from imagenetv2_pytorch import ImageNetV2Dataset
         dataset = ImageNetV2Dataset(location=args.imagenet_v2, transform=preprocess_val)
+    elif split == "openmmlab":
+        dataset = OpenMMLabImageNetDataset(input_filename=args.val_data,
+                                           image_root=args.imagenet_val, transforms=preprocess_val)
     else:
         if is_train:
             data_path = args.imagenet_train
@@ -555,7 +587,8 @@ def get_data(args, preprocess_fns, epoch=0, tokenizer=None):
             args, preprocess_val, is_train=False, tokenizer=tokenizer)
 
     if args.imagenet_val is not None:
-        data["imagenet-val"] = get_imagenet(args, preprocess_fns, "val")
+        split = "openmmlab" if args.dataset_type == "openmmlab" else "val"
+        data["imagenet-val"] = get_imagenet(args, preprocess_fns, split)
 
     if args.imagenet_v2 is not None:
         data["imagenet-v2"] = get_imagenet(args, preprocess_fns, "v2")
